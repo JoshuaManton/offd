@@ -12,7 +12,7 @@
 
     OFFD_Result offd = offd_open_file_dialog();
     wchar_t *path;
-    if (offd_next_path(&offd, &path)) {
+    if (offd_next_path(&offd, &path)) { // will return `false` if the user hit 'Cancel'
         // do something with `path`
     }
     offd_destroy_result(offd);
@@ -21,7 +21,7 @@
 
     OFFD_Result offd = offd_open_file_dialog(OFFD_MULTI_SELECT);
     wchar_t *path;
-    while (offd_next_path(&offd, &path)) {
+    while (offd_next_path(&offd, &path)) { // will return `false` if the user hit 'Cancel', or we have gone through all the paths
         // do something with `path`
     }
     offd_destroy_result(offd);
@@ -30,9 +30,11 @@
 
 => To open the Save File dialog:
 
-    wchar_t *path;
+    wchar_t *path = nullptr;
     OFFD_Result offd = offd_save_file_dialog(&path);
-    // do something with `path`
+    if (path != nullptr) {
+        // do something with `path`
+    }
     offd_destroy_result(offd);
 */
 
@@ -96,6 +98,7 @@ OFFD_Result offd_open_dialog_base(bool folder, bool must_exist, OFFD_FLAGS flags
     }
     hr = file_dialog->Show(NULL);
     if (!SUCCEEDED(hr)) {
+        file_dialog->Release();
         return {};
     }
 
@@ -151,6 +154,7 @@ OFFD_Result offd_save_file_dialog(wchar_t **out_path, wchar_t *title /*= nullptr
     }
     hr = file_save->Show(NULL);
     if (!SUCCEEDED(hr)) {
+        file_save->Release();
         return {};
     }
 
