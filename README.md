@@ -44,7 +44,7 @@ while (offd_next_path(&offd, &path)) {
 offd_destroy_result(offd);
 ```
 
-To open the Open Folder dialog it is the same as both of the above examples work except you call `offd_open_folder_dialog` instead of `offd_open_file_dialog`.
+To open the Open Folder dialog it is the same as both of the above examples except you call `offd_open_folder_dialog` instead of `offd_open_file_dialog`.
 
 To open the Save File dialog:
 ```
