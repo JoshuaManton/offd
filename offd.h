@@ -1,3 +1,4 @@
+#pragma once
 #pragma comment(lib, "Ole32.lib")
 
 #include <stdio.h>
