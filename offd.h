@@ -11,7 +11,7 @@
 => To open the Open File dialog for a single file:
 
     OFFD_Result offd = offd_open_file_dialog();
-    uint16_t *path;
+    wchar_t *path;
     if (offd_next_path(&offd, &path)) {
         // do something with `path`
     }
@@ -20,7 +20,7 @@
 => To open the Open File dialog with multi-file-select:
 
     OFFD_Result offd = offd_open_file_dialog(OFFD_MULTI_SELECT);
-    uint16_t *path;
+    wchar_t *path;
     while (offd_next_path(&offd, &path)) {
         // do something with `path`
     }
@@ -30,7 +30,7 @@
 
 => To open the Save File dialog:
 
-    uint16_t *path;
+    wchar_t *path;
     OFFD_Result offd = offd_save_file_dialog(&path);
     // do something with `path`
     offd_destroy_result(offd);
@@ -49,18 +49,19 @@ struct OFFD_Result {
     IFileDialog     *file_dialog;
     IShellItemArray *items;
     IShellItem      *item;
+    wchar_t         *last_out_path_to_free;
 };
 
-OFFD_Result offd_open_dialog_base(bool folder, bool must_exist, OFFD_FLAGS flags, uint16_t *title = nullptr);
-OFFD_Result offd_open_file_dialog(OFFD_FLAGS flags = (OFFD_FLAGS)0, uint16_t *title = nullptr);
-OFFD_Result offd_open_folder_dialog(OFFD_FLAGS flags = (OFFD_FLAGS)0, uint16_t *title = nullptr);
-OFFD_Result offd_save_file_dialog(uint16_t **out_path, uint16_t *title = nullptr);
-bool offd_next_path(OFFD_Result *result, uint16_t **out_path);
+OFFD_Result offd_open_dialog_base(bool folder, bool must_exist, OFFD_FLAGS flags, wchar_t *title = nullptr);
+OFFD_Result offd_open_file_dialog(OFFD_FLAGS flags = (OFFD_FLAGS)0, wchar_t *title = nullptr);
+OFFD_Result offd_open_folder_dialog(OFFD_FLAGS flags = (OFFD_FLAGS)0, wchar_t *title = nullptr);
+OFFD_Result offd_save_file_dialog(wchar_t **out_path, wchar_t *title = nullptr);
+bool offd_next_path(OFFD_Result *result, wchar_t **out_path);
 void offd_destroy_result(OFFD_Result result);
 
 #ifdef OFFD_IMPLEMENTATION
 
-OFFD_Result offd_open_dialog_base(bool folder, bool must_exist, OFFD_FLAGS flags, uint16_t *title /*= nullptr*/) {
+OFFD_Result offd_open_dialog_base(bool folder, bool must_exist, OFFD_FLAGS flags, wchar_t *title /*= nullptr*/) {
     HRESULT hr;
 
     //
@@ -118,15 +119,15 @@ OFFD_Result offd_open_dialog_base(bool folder, bool must_exist, OFFD_FLAGS flags
     return result;
 }
 
-OFFD_Result offd_open_file_dialog(OFFD_FLAGS flags /*= (OFFD_FLAGS)0*/, uint16_t *title /*= nullptr*/) {
+OFFD_Result offd_open_file_dialog(OFFD_FLAGS flags /*= (OFFD_FLAGS)0*/, wchar_t *title /*= nullptr*/) {
     return offd_open_dialog_base(false, (flags & OFFD_ALLOW_NONEXISTENT) == 0, flags, title);
 }
 
-OFFD_Result offd_open_folder_dialog(OFFD_FLAGS flags /*= (OFFD_FLAGS)0*/, uint16_t *title /*= nullptr*/) {
+OFFD_Result offd_open_folder_dialog(OFFD_FLAGS flags /*= (OFFD_FLAGS)0*/, wchar_t *title /*= nullptr*/) {
     return offd_open_dialog_base(true, (flags & OFFD_ALLOW_NONEXISTENT) == 0, flags, title);
 }
 
-OFFD_Result offd_save_file_dialog(uint16_t **out_path, uint16_t *title /*= nullptr*/) {
+OFFD_Result offd_save_file_dialog(wchar_t **out_path, wchar_t *title /*= nullptr*/) {
     HRESULT hr;
 
     //
@@ -162,20 +163,25 @@ OFFD_Result offd_save_file_dialog(uint16_t **out_path, uint16_t *title /*= nullp
     //
     OFFD_Result result;
     ZeroMemory(&result, sizeof(result));
-    result.current_path_index = -1;
-    result.path_count         = 1;
-    result.file_dialog        = file_save;
-    result.items              = nullptr;
-    result.item               = item;
+    result.current_path_index    = -1;
+    result.path_count            = 1;
+    result.file_dialog           = file_save;
+    result.items                 = nullptr;
+    result.item                  = item;
+    result.last_out_path_to_free = *out_path;
     return result;
 }
 
-bool offd_next_path(OFFD_Result *result, uint16_t **out_path) {
+bool offd_next_path(OFFD_Result *result, wchar_t **out_path) {
     if ((result->current_path_index+1) >= result->path_count) {
         return false;
     }
     if (result->item) {
         result->item->Release();
+    }
+    if (result->last_out_path_to_free) {
+        CoTaskMemFree(result->last_out_path_to_free);
+        result->last_out_path_to_free = nullptr;
     }
     result->current_path_index += 1;
     HRESULT hr;
@@ -183,13 +189,15 @@ bool offd_next_path(OFFD_Result *result, uint16_t **out_path) {
     assert(SUCCEEDED(hr));
     hr = result->item->GetDisplayName(SIGDN_FILESYSPATH, (LPWSTR *)out_path);
     assert(SUCCEEDED(hr));
+    result->last_out_path_to_free = *out_path;
     return true;
 }
 
 void offd_destroy_result(OFFD_Result result) {
-    if (result.file_dialog) { result.file_dialog->Release(); result.file_dialog = nullptr; }
-    if (result.items)       { result.items->Release();       result.items       = nullptr; }
-    if (result.item)        { result.item->Release();        result.item        = nullptr; }
+    if (result.file_dialog)           { result.file_dialog->Release();               result.file_dialog           = nullptr; }
+    if (result.items)                 { result.items->Release();                     result.items                 = nullptr; }
+    if (result.item)                  { result.item->Release();                      result.item                  = nullptr; }
+    if (result.last_out_path_to_free) { CoTaskMemFree(result.last_out_path_to_free); result.last_out_path_to_free = nullptr; }
 }
 
 #endif
