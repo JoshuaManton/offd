@@ -75,6 +75,7 @@ OFFD_Result offd_open_dialog_base(bool folder, bool must_exist, OFFD_FLAGS flags
 
     //
     DWORD additional_flags = 0;
+    additional_flags |= FOS_NOCHANGEDIR;
     if (must_exist) {
         additional_flags |= FOS_PATHMUSTEXIST | FOS_FILEMUSTEXIST;
     }
