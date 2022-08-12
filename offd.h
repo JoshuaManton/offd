@@ -6,6 +6,35 @@
 #include <stdint.h>
 #include <assert.h>
 
+/*
+=> To open the Open File dialog for a single file:
+
+    OFFD_Result offd = offd_open_file_dialog();
+    uint16_t *path;
+    if (offd_next_path(&offd, &path)) {
+        // do something with `path`
+    }
+    offd_destroy_result(offd);
+
+=> To open the Open File dialog with multi-file-select:
+
+    OFFD_Result offd = offd_open_file_dialog(OFFD_MULTI_SELECT);
+    uint16_t *path;
+    while (offd_next_path(&offd, &path)) {
+        // do something with `path`
+    }
+    offd_destroy_result(offd);
+
+=> To open the Open Folder dialog it is the same as both of the above examples work except you call offd_open_folder_dialog instead of offd_open_file_dialog.
+
+=> To open the Save File dialog:
+
+    uint16_t *path;
+    OFFD_Result offd = offd_save_file_dialog(&path);
+    // do something with `path`
+    offd_destroy_result(offd);
+*/
+
 extern "C" {
 
 enum OFFD_FLAGS {
